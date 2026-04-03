@@ -212,6 +212,15 @@ Coverage gate: 60% (CI enforced). Kuzu and Anthropic tests are auto-skipped if p
 
 ---
 
+## Recent Fixes
+
+- **FTS5 `?` crash** — natural-language questions containing `?` (e.g. `"What medication should I take?"`) no longer cause a silent FTS5 parse error. Special characters (`?`, `*`, `"`, `[`, `]`, etc.) are stripped before the query reaches SQLite. ([`recall/storage/database.py`](recall/storage/database.py))
+- **FTS5 AND → OR for multi-word queries** — multi-word queries now use OR logic so a document matching *any* keyword is returned. Previously, FTS5's implicit AND required all words to match, causing relevant single-keyword documents to be silently excluded. ([`recall/retrieval/fts.py`](recall/retrieval/fts.py))
+
+See [`benchmarks/README.md`](benchmarks/README.md) for the IR micro-benchmark, before/after results, and latency numbers.
+
+---
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).

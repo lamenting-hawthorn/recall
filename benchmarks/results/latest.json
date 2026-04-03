@@ -1,0 +1,184 @@
+{
+  "run_at": "2026-04-03T14:57:55.040438+00:00",
+  "corpus_size": 15,
+  "num_queries": 10,
+  "recall@1": 0.5,
+  "recall@3": 0.8667,
+  "recall@5": 0.9,
+  "mrr": 0.9,
+  "latency_p50_ms": 0.103,
+  "latency_p95_ms": 0.121,
+  "queries": [
+    {
+      "query": "What medication should I take for pain?",
+      "note": "Bug 1: bare '?' crashed FTS5 before fix",
+      "recall@1": 0.0,
+      "recall@3": 0.667,
+      "recall@5": 1.0,
+      "mrr": 0.5,
+      "latency_ms": 0.223,
+      "retrieved_ids": [
+        12,
+        1,
+        2,
+        3,
+        7
+      ],
+      "relevant_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "query": "medication side effects?",
+      "note": "Bug 1: trailing '?' on multi-word query",
+      "recall@1": 0.5,
+      "recall@3": 0.5,
+      "recall@5": 0.5,
+      "mrr": 1.0,
+      "latency_ms": 0.121,
+      "retrieved_ids": [
+        3,
+        2
+      ],
+      "relevant_ids": [
+        1,
+        3
+      ]
+    },
+    {
+      "query": "medication take",
+      "note": "Bug 2: AND logic missed docs with only one keyword",
+      "recall@1": 0.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 0.5,
+      "latency_ms": 0.103,
+      "retrieved_ids": [
+        12,
+        3,
+        2
+      ],
+      "relevant_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "query": "sleep recovery",
+      "note": "Bug 2: multi-word OR should match both sleep docs",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.098,
+      "retrieved_ids": [
+        11,
+        10
+      ],
+      "relevant_ids": [
+        10,
+        11
+      ]
+    },
+    {
+      "query": "ibuprofen dosage",
+      "note": "Exact keyword match",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.096,
+      "retrieved_ids": [
+        2,
+        1
+      ],
+      "relevant_ids": [
+        1,
+        2
+      ]
+    },
+    {
+      "query": "running cardio",
+      "note": "Single-domain fitness query",
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.099,
+      "retrieved_ids": [
+        4
+      ],
+      "relevant_ids": [
+        4
+      ]
+    },
+    {
+      "query": "protein muscle",
+      "note": "Cross-domain keyword overlap",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.099,
+      "retrieved_ids": [
+        6,
+        5
+      ],
+      "relevant_ids": [
+        5,
+        6
+      ]
+    },
+    {
+      "query": "passport travel documents",
+      "note": "Travel domain",
+      "recall@1": 0.5,
+      "recall@3": 0.5,
+      "recall@5": 0.5,
+      "mrr": 1.0,
+      "latency_ms": 0.105,
+      "retrieved_ids": [
+        9
+      ],
+      "relevant_ids": [
+        8,
+        9
+      ]
+    },
+    {
+      "query": "Pomodoro focus technique",
+      "note": "Proper noun lookup",
+      "recall@1": 1.0,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.104,
+      "retrieved_ids": [
+        12
+      ],
+      "relevant_ids": [
+        12
+      ]
+    },
+    {
+      "query": "savings investing money",
+      "note": "Finance domain, three keywords",
+      "recall@1": 0.5,
+      "recall@3": 1.0,
+      "recall@5": 1.0,
+      "mrr": 1.0,
+      "latency_ms": 0.106,
+      "retrieved_ids": [
+        15,
+        8,
+        14
+      ],
+      "relevant_ids": [
+        14,
+        15
+      ]
+    }
+  ]
+}
