@@ -37,7 +37,9 @@ class KuzuGraphManager:
 
     def __init__(self, db_path: Path | None = None):
         self._path = db_path or RECALL_KUZU_PATH
-        self._path.mkdir(parents=True, exist_ok=True)
+        # NOTE: do NOT mkdir here — Kuzu requires the path to not exist yet;
+        # it creates the directory itself. Only ensure the parent exists.
+        self._path.parent.mkdir(parents=True, exist_ok=True)
         self._kuzu = _import_kuzu()
         self._db: Any = None
         self._conn: Any = None

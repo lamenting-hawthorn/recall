@@ -112,11 +112,21 @@ def _read_filters() -> str:
 
 
 def _auth_ok(ctx: Context) -> bool:
-    """Return True if auth is disabled or the request carries a valid Bearer token."""
+    """Return True if auth is disabled or the request carries a valid Bearer token.
+
+    For stdio transport FastMCP has no HTTP headers, so auth is skipped (stdio
+    is a local pipe — the OS already restricts access). For HTTP/SSE transport,
+    the Bearer token is checked via the Starlette request object.
+    """
     if not RECALL_API_KEY:
         return True  # auth disabled in personal mode
-    # FastMCP does not expose HTTP headers in stdio mode — skip auth for stdio
-    return True  # HTTP auth enforced in the Worker service (Phase 6)
+    try:
+        request = ctx.get_http_request()
+        auth_header = request.headers.get("authorization", "")
+        return auth_header == f"Bearer {RECALL_API_KEY}"
+    except Exception:
+        # No HTTP request context (stdio transport) — skip auth
+        return True
 
 
 # ── MCP application ───────────────────────────────────────────────────────────

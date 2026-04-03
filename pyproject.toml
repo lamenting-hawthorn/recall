@@ -7,6 +7,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "agent",
     "aiosqlite>=0.22.1",
+    "kuzu>=0.11.3",
     "mcp-server",
     "recall-core",
     "rich>=13.7.0",

@@ -45,3 +45,4 @@ mcp.json
 
 ## start_server.sh
 **/start_server.sh
+.coverage
