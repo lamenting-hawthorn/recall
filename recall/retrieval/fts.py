@@ -35,7 +35,13 @@ class FTSRetriever(BaseRetriever):
     async def search(self, query: str, limit: int = 10) -> RetrievalResult:
         t0 = self._now_ms()
         try:
-            obs_ids = await self._db.fts_search(query, limit=limit)
+            # OR-join tokens so any matching keyword returns a result.
+            # FTS5's default AND logic misses documents that contain only a
+            # subset of the query words (e.g. "medication take" misses a doc
+            # that only mentions "medication").
+            tokens = query.split()
+            fts_query = " OR ".join(tokens) if len(tokens) > 1 else query
+            obs_ids = await self._db.fts_search(fts_query, limit=limit)
             latency = self._now_ms() - t0
             log.debug(
                 "fts_search",

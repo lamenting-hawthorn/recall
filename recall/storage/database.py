@@ -8,6 +8,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+import re
+
 import aiosqlite
 
 from recall.config import RECALL_DB_PATH
@@ -16,6 +18,16 @@ from recall.errors import StorageError
 from recall.logging import get_logger
 
 log = get_logger(__name__)
+
+# FTS5 special characters that cause parse errors when passed unescaped.
+# We strip them rather than escape so the query stays human-readable.
+_FTS5_SPECIAL = re.compile(r'[?"*\[\]{}():\^]')
+
+
+def _sanitize_fts_query(query: str) -> str:
+    """Strip FTS5 syntax chars that cause parse errors (e.g. bare '?')."""
+    return _FTS5_SPECIAL.sub("", query).strip()
+
 
 _SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -227,6 +239,9 @@ class DatabaseManager(BaseStorage):
 
     async def fts_search(self, query: str, limit: int = 20) -> list[int]:
         """FTS5 keyword search. Returns observation IDs ranked by relevance."""
+        query = _sanitize_fts_query(query)
+        if not query:
+            return []
         await self._ensure_init()
         try:
             async with self._conn.execute(
