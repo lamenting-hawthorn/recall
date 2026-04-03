@@ -2498,6 +2498,7 @@ source = { editable = "." }
 dependencies = [
     { name = "agent" },
     { name = "aiosqlite" },
+    { name = "kuzu" },
     { name = "mcp-server" },
     { name = "recall-core" },
     { name = "rich" },
@@ -2516,6 +2517,7 @@ dev = [
 requires-dist = [
     { name = "agent", editable = "agent" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
+    { name = "kuzu", specifier = ">=0.11.3" },
     { name = "mcp-server", editable = "mcp_server" },
     { name = "recall-core", editable = "recall" },
     { name = "rich", specifier = ">=13.7.0" },

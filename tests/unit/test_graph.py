@@ -77,7 +77,8 @@ def test_remove_edges_from_clears_edges(graph: KuzuGraphManager) -> None:
     graph.upsert_entity("alice", "/vault/alice.md")
     graph.upsert_entity("bob", "/vault/bob.md")
     graph.add_edge("alice", "bob", anchor="link")
-    graph.remove_edges_from("/vault/alice.md")
+    # remove_edges_from takes the entity name, not the file path
+    graph.remove_edges_from("alice")
     result = graph.expand(["alice"], hops=1)
     assert "bob" not in result
 
@@ -90,8 +91,8 @@ def test_incremental_update(graph: KuzuGraphManager) -> None:
     graph.upsert_entity("carol", "/vault/carol.md")
     # Initial: alice→bob
     graph.add_edge("alice", "bob", anchor="link")
-    # Update: old=[bob], new=[carol] — alice should now point to carol, not bob
-    graph.incremental_update("/vault/alice.md", old_links=["bob"], new_links=["carol"])
+    # incremental_update(entity_name, new_targets, file_path)
+    graph.incremental_update("alice", new_targets=["carol"], file_path="/vault/alice.md")
     result = graph.expand(["alice"], hops=1)
     assert "carol" in result
 

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import re
 
-_PRIVATE_RE = re.compile(r"<private>.*?</private>", re.DOTALL | re.IGNORECASE)
+# Matches the innermost <private>...</private> block — one that contains no nested opener.
+# Looping with this regex handles arbitrarily deep nesting.
+_PRIVATE_RE = re.compile(r"<private>(?:(?!<private>)[\s\S])*?</private>", re.IGNORECASE)
 
 
 class PrivacyFilter:
@@ -17,8 +19,15 @@ class PrivacyFilter:
 
     @staticmethod
     def strip(text: str) -> str:
-        """Remove all <private>...</private> blocks. Returns cleaned text."""
-        return _PRIVATE_RE.sub("", text).strip()
+        """Remove all <private>...</private> blocks, including nested ones."""
+        # Loop until no matches remain — handles nested tags like
+        # <private>outer<private>inner</private>rest</private>
+        prev = None
+        result = text
+        while prev != result:
+            prev = result
+            result = _PRIVATE_RE.sub("", result)
+        return result.strip()
 
     @staticmethod
     def has_private(text: str) -> bool:
