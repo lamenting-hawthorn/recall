@@ -16,6 +16,7 @@ Endpoints:
 
 Auth: Bearer token from RECALL_API_KEY header. Disabled when env var unset.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -88,6 +89,7 @@ async def _shutdown() -> None:
 
 # ── Auth dependency ───────────────────────────────────────────────────────────
 
+
 async def _require_auth(request: Request) -> None:
     if not RECALL_API_KEY:
         return  # auth disabled in personal mode
@@ -97,6 +99,7 @@ async def _require_auth(request: Request) -> None:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 async def index() -> HTMLResponse:
@@ -112,13 +115,15 @@ async def health() -> JSONResponse:
     graph_ok = _graph.available if _graph else False
     vector_ok = _chroma.available if _chroma else False
     status = "ok" if db_ok else "degraded"
-    return JSONResponse({
-        "status": status,
-        "db": db_ok,
-        "graph": graph_ok,
-        "vector": vector_ok,
-        "timestamp": time.time(),
-    })
+    return JSONResponse(
+        {
+            "status": status,
+            "db": db_ok,
+            "graph": graph_ok,
+            "vector": vector_ok,
+            "timestamp": time.time(),
+        }
+    )
 
 
 @app.get("/sessions")
@@ -141,13 +146,15 @@ async def list_sessions(
                 "SELECT COUNT(*) FROM observations WHERE session_id = ?", (sid,)
             ) as cur2:
                 obs_count = (await cur2.fetchone())[0]
-            sessions.append({
-                "id": sid,
-                "started_at": row[1],
-                "ended_at": row[2],
-                "summary": row[3],
-                "obs_count": obs_count,
-            })
+            sessions.append(
+                {
+                    "id": sid,
+                    "started_at": row[1],
+                    "ended_at": row[2],
+                    "summary": row[3],
+                    "obs_count": obs_count,
+                }
+            )
         return JSONResponse(sessions)
     except Exception as exc:
         raise HTTPException(500, str(exc))
@@ -199,18 +206,28 @@ async def search(
         raise HTTPException(503, "Retriever not available")
     try:
         result = await _retriever.search(body.query, tier_limit=body.tier_limit)
-        obs_list = await _retriever.get_observations(result.obs_ids) if result.obs_ids else []
-        return JSONResponse({
-            "query": body.query,
-            "source_tier": result.source_tier,
-            "tier_label": {1: "FTS5", 2: "graph", 3: "vector", 4: "agent"}.get(result.source_tier, "none"),
-            "latency_ms": round(result.latency_ms, 1),
-            "obs_ids": result.obs_ids,
-            "observations": [
-                {"id": o.get("id"), "content": o.get("content", ""), "type": o.get("type")}
-                for o in obs_list
-            ],
-        })
+        obs_list = (
+            await _retriever.get_observations(result.obs_ids) if result.obs_ids else []
+        )
+        return JSONResponse(
+            {
+                "query": body.query,
+                "source_tier": result.source_tier,
+                "tier_label": {1: "FTS5", 2: "graph", 3: "vector", 4: "agent"}.get(
+                    result.source_tier, "none"
+                ),
+                "latency_ms": round(result.latency_ms, 1),
+                "obs_ids": result.obs_ids,
+                "observations": [
+                    {
+                        "id": o.get("id"),
+                        "content": o.get("content", ""),
+                        "type": o.get("type"),
+                    }
+                    for o in obs_list
+                ],
+            }
+        )
     except Exception as exc:
         raise HTTPException(500, str(exc))
 
@@ -244,7 +261,10 @@ async def backup(_: None = Depends(_require_auth)) -> StreamingResponse:
             if RECALL_VAULT_PATH.exists():
                 for md in RECALL_VAULT_PATH.rglob("*.md"):
                     try:
-                        tar.add(str(md), arcname=f"vault/{md.relative_to(RECALL_VAULT_PATH)}")
+                        tar.add(
+                            str(md),
+                            arcname=f"vault/{md.relative_to(RECALL_VAULT_PATH)}",
+                        )
                     except Exception:
                         pass
             # Add SQLite DB snapshot
@@ -273,8 +293,10 @@ async def stats(_: None = Depends(_require_auth)) -> JSONResponse:
 
 # ── Run ───────────────────────────────────────────────────────────────────────
 
+
 def run() -> None:
     import uvicorn
+
     uvicorn.run(app, host=RECALL_WORKER_HOST, port=RECALL_WORKER_PORT)
 
 

@@ -1,4 +1,5 @@
 """Unit tests for ObservationCapture."""
+
 from __future__ import annotations
 
 import tempfile

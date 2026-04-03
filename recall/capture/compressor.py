@@ -1,4 +1,5 @@
 """MemoryCompressor — LLM-based compression of recent observations into summaries."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -67,7 +68,12 @@ class MemoryCompressor:
                 for o in obs_list
             )
             summary = await self._model_client.chat_completion(
-                messages=[{"role": "user", "content": _COMPRESS_PROMPT.format(observations=obs_text)}],
+                messages=[
+                    {
+                        "role": "user",
+                        "content": _COMPRESS_PROMPT.format(observations=obs_text),
+                    }
+                ],
                 model="",
                 max_tokens=512,
             )

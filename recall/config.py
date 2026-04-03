@@ -3,6 +3,7 @@
 All environment variables consumed by Recall are defined here.
 Other modules import from this file — they do NOT call os.getenv() directly.
 """
+
 from __future__ import annotations
 
 import os
@@ -18,7 +19,9 @@ RECALL_LLM_PROVIDER: str = os.getenv("RECALL_LLM_PROVIDER", "openrouter").lower(
 RECALL_LLM_MODEL: str = os.getenv("RECALL_LLM_MODEL", "")
 
 OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_BASE_URL: str = os.getenv(
+    "OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"
+)
 OPENROUTER_DEFAULT_MODEL: str = "anthropic/claude-sonnet-4"
 
 OLLAMA_HOST: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")

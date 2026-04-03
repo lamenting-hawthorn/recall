@@ -1,4 +1,5 @@
 """BaseModelClient ABC — abstracts LLM provider behind a uniform chat interface."""
+
 from __future__ import annotations
 
 import os

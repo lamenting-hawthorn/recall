@@ -1,4 +1,5 @@
 """Unit tests for KuzuGraphManager — entity nodes, edges, BFS expansion."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -92,14 +93,19 @@ def test_incremental_update(graph: KuzuGraphManager) -> None:
     # Initial: alice→bob
     graph.add_edge("alice", "bob", anchor="link")
     # incremental_update(entity_name, new_targets, file_path)
-    graph.incremental_update("alice", new_targets=["carol"], file_path="/vault/alice.md")
+    graph.incremental_update(
+        "alice", new_targets=["carol"], file_path="/vault/alice.md"
+    )
     result = graph.expand(["alice"], hops=1)
     assert "carol" in result
 
 
-def test_unavailable_gracefully_returns_empty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unavailable_gracefully_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """When kuzu is not installed, all methods return empty/False without raising."""
     import recall.storage.graph as graph_mod
+
     monkeypatch.setattr(graph_mod, "_import_kuzu", lambda: None)
     g = KuzuGraphManager(tmp_path / "no_kuzu_graph")
     g.init()

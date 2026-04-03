@@ -12,6 +12,7 @@ Session: Created on startup, closed with AI summary on shutdown.
 
 Apache 2.0 — original implementation.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -39,6 +40,7 @@ try:
     from mcp_server.settings import MEMORY_AGENT_NAME, MLX_4BIT_MEMORY_AGENT_NAME
 except Exception:
     from settings import MEMORY_AGENT_NAME  # type: ignore[no-redef]
+
     MLX_4BIT_MEMORY_AGENT_NAME = "mem-agent-mlx@4bit"
 
 from recall.config import (
@@ -54,11 +56,11 @@ log = get_logger(__name__)
 
 # ── Shared state (initialised in lifespan) ────────────────────────────────────
 
-_db: Any = None           # DatabaseManager
-_graph: Any = None        # KuzuGraphManager
-_chroma: Any = None       # ChromaManager
-_retriever: Any = None    # HybridRetriever
-_capture: Any = None      # ObservationCapture
+_db: Any = None  # DatabaseManager
+_graph: Any = None  # KuzuGraphManager
+_chroma: Any = None  # ChromaManager
+_retriever: Any = None  # HybridRetriever
+_capture: Any = None  # ObservationCapture
 _session_mgr: Any = None  # SessionManager
 _session_id: int = -1
 _model_client: Any = None  # BaseModelClient (None in personal mode)
@@ -83,6 +85,7 @@ def _check_rate(client_id: str) -> bool:
 
 
 # ── Legacy helpers (preserved from v1) ───────────────────────────────────────
+
 
 def _repo_root() -> str:
     return REPO_ROOT
@@ -135,6 +138,7 @@ mcp = FastMCP("recall-memory-server")
 
 
 # ── Tools ─────────────────────────────────────────────────────────────────────
+
 
 @mcp.tool
 async def use_memory_agent(question: str, ctx: Context) -> str:
@@ -252,7 +256,9 @@ async def recall_hybrid(
     t0 = time.monotonic()
     try:
         result = await _retriever.search(query=query, tier_limit=tier_limit)
-        obs_list = await _retriever.get_observations(result.obs_ids) if result.obs_ids else []
+        obs_list = (
+            await _retriever.get_observations(result.obs_ids) if result.obs_ids else []
+        )
 
         payload = {
             "query": query,
@@ -331,6 +337,7 @@ async def get_observations(
 
 # ── Lifespan (startup / shutdown) ─────────────────────────────────────────────
 
+
 async def _startup() -> None:
     """Initialise storage, indexer, retriever, and session on server start."""
     global _db, _graph, _chroma, _retriever, _capture, _session_mgr, _session_id, _model_client
@@ -364,6 +371,7 @@ async def _startup() -> None:
         # Try to init model client (may fail if no API key set — that's OK)
         try:
             from recall.core.model_client import BaseModelClient
+
             _model_client = BaseModelClient.from_env()
         except Exception as exc:
             log.info("model_client_unavailable", reason=str(exc))
@@ -379,7 +387,9 @@ async def _startup() -> None:
         await vault.walk()
         vault.start_watcher()
 
-        log.info("recall_server_ready", session_id=_session_id, vault=str(RECALL_VAULT_PATH))
+        log.info(
+            "recall_server_ready", session_id=_session_id, vault=str(RECALL_VAULT_PATH)
+        )
 
     except Exception as exc:
         log.warning("startup_partial_failure", error=str(exc))
@@ -404,6 +414,7 @@ async def _shutdown() -> None:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _format_obs_reply(obs_list: list[dict], tier: int) -> str:
     """Format retrieved observations into a human-readable reply."""
     tier_label = {1: "FTS5", 2: "graph", 3: "vector", 4: "agent"}.get(tier, "?")
@@ -418,6 +429,7 @@ def _format_obs_reply(obs_list: list[dict], tier: int) -> str:
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+
     async def _main() -> None:
         await _startup()
         try:

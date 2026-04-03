@@ -4,6 +4,7 @@ These tests spin up real storage (SQLite, optional Kuzu), write real markdown
 files to a temp vault, run the VaultIndexer, and assert that the HybridRetriever
 finds the expected observations without mocking any storage layer.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -52,12 +53,18 @@ async def retriever(db: DatabaseManager, graph: KuzuGraphManager) -> HybridRetri
 # Full pipeline: write markdown → index → search via tier 1
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_vault_index_then_fts_search(
-    db: DatabaseManager, graph: KuzuGraphManager, vault: Path, retriever: HybridRetriever
+    db: DatabaseManager,
+    graph: KuzuGraphManager,
+    vault: Path,
+    retriever: HybridRetriever,
 ) -> None:
     """Index a markdown file and confirm tier-1 FTS finds it."""
-    (vault / "alice.md").write_text("Alice works at Acme Corporation.\nShe leads the product team.")
+    (vault / "alice.md").write_text(
+        "Alice works at Acme Corporation.\nShe leads the product team."
+    )
     indexer = VaultIndexer(db=db, graph=graph, vault_path=vault)
     await indexer.walk()
 
@@ -68,7 +75,10 @@ async def test_vault_index_then_fts_search(
 
 @pytest.mark.asyncio
 async def test_multiple_files_all_indexed(
-    db: DatabaseManager, graph: KuzuGraphManager, vault: Path, retriever: HybridRetriever
+    db: DatabaseManager,
+    graph: KuzuGraphManager,
+    vault: Path,
+    retriever: HybridRetriever,
 ) -> None:
     """All markdown files in vault are indexed; each is searchable."""
     (vault / "alice.md").write_text("Alice is a software engineer.")
@@ -84,7 +94,10 @@ async def test_multiple_files_all_indexed(
 
 @pytest.mark.asyncio
 async def test_private_content_not_indexed(
-    db: DatabaseManager, graph: KuzuGraphManager, vault: Path, retriever: HybridRetriever
+    db: DatabaseManager,
+    graph: KuzuGraphManager,
+    vault: Path,
+    retriever: HybridRetriever,
 ) -> None:
     """Content inside <private>...</private> must NOT appear in FTS results."""
     (vault / "secrets.md").write_text(
@@ -124,7 +137,10 @@ async def test_wikilinks_create_graph_edges(
 
 @pytest.mark.asyncio
 async def test_tier2_graph_expansion(
-    db: DatabaseManager, graph: KuzuGraphManager, vault: Path, retriever: HybridRetriever
+    db: DatabaseManager,
+    graph: KuzuGraphManager,
+    vault: Path,
+    retriever: HybridRetriever,
 ) -> None:
     """Tier 2 graph expansion finds observations reachable via wikilinks."""
     if not graph.available:
@@ -147,7 +163,9 @@ async def test_observation_capture_then_search(
 ) -> None:
     """Observations written via ObservationCapture are searchable immediately."""
     cap = ObservationCapture(db)
-    await cap.record("The quarterly revenue target is 2.5 million", tier_used=1, latency_ms=5.0)
+    await cap.record(
+        "The quarterly revenue target is 2.5 million", tier_used=1, latency_ms=5.0
+    )
 
     result = await retriever.search("quarterly revenue", tier_limit=1)
     assert len(result.obs_ids) >= 1
@@ -172,7 +190,10 @@ async def test_session_lifecycle(db: DatabaseManager) -> None:
 
 @pytest.mark.asyncio
 async def test_dedup_prevents_duplicate_indexing(
-    db: DatabaseManager, graph: KuzuGraphManager, vault: Path, retriever: HybridRetriever
+    db: DatabaseManager,
+    graph: KuzuGraphManager,
+    vault: Path,
+    retriever: HybridRetriever,
 ) -> None:
     """Re-indexing the same file does not create duplicate observations."""
     md_file = vault / "stable.md"

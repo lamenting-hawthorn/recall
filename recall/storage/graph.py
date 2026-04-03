@@ -1,4 +1,5 @@
 """KuzuGraphManager — embedded Kuzu graph for entity-relation traversal."""
+
 from __future__ import annotations
 
 import contextlib
@@ -16,6 +17,7 @@ def _import_kuzu() -> Any:
     """Lazy import so kuzu is optional at import time."""
     try:
         import kuzu
+
         return kuzu
     except ImportError:
         return None
@@ -97,12 +99,8 @@ class KuzuGraphManager:
             return
         try:
             # Ensure both nodes exist
-            self._conn.execute(
-                "MERGE (:Entity {name: $name})", {"name": src}
-            )
-            self._conn.execute(
-                "MERGE (:Entity {name: $name})", {"name": dst}
-            )
+            self._conn.execute("MERGE (:Entity {name: $name})", {"name": src})
+            self._conn.execute("MERGE (:Entity {name: $name})", {"name": dst})
             self._conn.execute(
                 "MATCH (a:Entity {name: $src}), (b:Entity {name: $dst}) "
                 "MERGE (a)-[:LINKS_TO {anchor: $anchor}]->(b)",
@@ -164,7 +162,9 @@ class KuzuGraphManager:
             while result.has_next():
                 row = result.get_next()
                 names.append(row[0])
-            log.debug("graph_expand", seeds=len(entity_names), found=len(names), hops=hops)
+            log.debug(
+                "graph_expand", seeds=len(entity_names), found=len(names), hops=hops
+            )
             return names
         except Exception as exc:
             log.warning("graph_expand_failed", error=str(exc))

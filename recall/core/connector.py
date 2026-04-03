@@ -1,4 +1,5 @@
 """BaseConnector ABC — supersedes memory_connectors/base.py for v2 connectors."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

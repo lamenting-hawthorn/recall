@@ -1,4 +1,5 @@
 """Unit tests for DatabaseManager — SQLite FTS5 storage."""
+
 from __future__ import annotations
 
 import asyncio
@@ -39,7 +40,9 @@ async def test_create_session(db: DatabaseManager) -> None:
 @pytest.mark.asyncio
 async def test_write_and_read_observation(db: DatabaseManager) -> None:
     sid = await db.create_session()
-    oid = await db.write_observation("hello world", session_id=sid, tier_used=1, latency_ms=5.0)
+    oid = await db.write_observation(
+        "hello world", session_id=sid, tier_used=1, latency_ms=5.0
+    )
     assert isinstance(oid, int)
     obs = await db.get_observations([oid])
     assert len(obs) == 1
@@ -101,7 +104,9 @@ async def test_close_session_with_summary(db: DatabaseManager) -> None:
     sid = await db.create_session()
     await db.close_session(sid, "test summary")
     # Verify summary was stored by querying directly
-    async with db._conn.execute("SELECT summary FROM sessions WHERE id=?", (sid,)) as cur:
+    async with db._conn.execute(
+        "SELECT summary FROM sessions WHERE id=?", (sid,)
+    ) as cur:
         row = await cur.fetchone()
     assert row[0] == "test summary"
 
@@ -109,8 +114,12 @@ async def test_close_session_with_summary(db: DatabaseManager) -> None:
 @pytest.mark.asyncio
 async def test_upsert_entity(db: DatabaseManager) -> None:
     await db.upsert_entity("alice", "/vault/entities/alice.md", wikilink_count=3)
-    await db.upsert_entity("alice", "/vault/entities/alice.md", wikilink_count=5)  # upsert
-    async with db._conn.execute("SELECT wikilink_count FROM entity_metadata WHERE name='alice'") as cur:
+    await db.upsert_entity(
+        "alice", "/vault/entities/alice.md", wikilink_count=5
+    )  # upsert
+    async with db._conn.execute(
+        "SELECT wikilink_count FROM entity_metadata WHERE name='alice'"
+    ) as cur:
         row = await cur.fetchone()
     assert row[0] == 5  # updated
 

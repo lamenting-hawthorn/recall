@@ -11,13 +11,20 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+    from tenacity import (
+        retry,
+        stop_after_attempt,
+        wait_exponential,
+        retry_if_exception_type,
+    )
+
     _HAS_TENACITY = True
 except ImportError:
     _HAS_TENACITY = False
 
 try:
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+
     _HAS_RICH = True
 except ImportError:
     _HAS_RICH = False
@@ -85,7 +92,9 @@ class GitHubLiveConnector(BaseMemoryConnector):
         all_data = {"repositories": [], "total_items": 0}
 
         if _HAS_RICH:
-            progress_ctx = Progress(SpinnerColumn(), TextColumn("{task.description}"), BarColumn())
+            progress_ctx = Progress(
+                SpinnerColumn(), TextColumn("{task.description}"), BarColumn()
+            )
             task_id = None
         else:
             progress_ctx = None
@@ -104,7 +113,9 @@ class GitHubLiveConnector(BaseMemoryConnector):
                     all_data["total_items"] += repo_data.get("item_count", 0)
                 except UnicodeEncodeError as e:
                     print(f"⚠️ Unicode encoding error for {repo_stripped}: {e}")
-                    print(f"   This may be due to special characters in repository content")
+                    print(
+                        f"   This may be due to special characters in repository content"
+                    )
                     continue
                 except Exception as e:
                     print(f"⚠️ Error fetching {repo_stripped}: {e}")
@@ -219,7 +230,9 @@ class GitHubLiveConnector(BaseMemoryConnector):
         max_retries = 3
 
         try:
-            response = requests.get(url, headers=self.headers, params=params or {}, timeout=30)
+            response = requests.get(
+                url, headers=self.headers, params=params or {}, timeout=30
+            )
 
             # Handle rate limiting — back off and retry
             if response.status_code == 429 or (
@@ -227,22 +240,30 @@ class GitHubLiveConnector(BaseMemoryConnector):
             ):
                 retry_after = int(response.headers.get("Retry-After", 60))
                 if _attempt < max_retries:
-                    print(f"⚠️ GitHub rate limit hit — waiting {retry_after}s before retry {_attempt + 1}/{max_retries}")
+                    print(
+                        f"⚠️ GitHub rate limit hit — waiting {retry_after}s before retry {_attempt + 1}/{max_retries}"
+                    )
                     time.sleep(retry_after)
                     return self._github_api_call(endpoint, params, _attempt + 1)
-                print("⚠️ GitHub API rate limit exceeded. Provide a token to increase limits.")
+                print(
+                    "⚠️ GitHub API rate limit exceeded. Provide a token to increase limits."
+                )
                 return None
 
             # Transient server errors — retry with backoff
             if response.status_code in (500, 502, 503, 504) and _attempt < max_retries:
-                wait = 2 ** _attempt
-                print(f"⚠️ GitHub API transient error {response.status_code} — retrying in {wait}s")
+                wait = 2**_attempt
+                print(
+                    f"⚠️ GitHub API transient error {response.status_code} — retrying in {wait}s"
+                )
                 time.sleep(wait)
                 return self._github_api_call(endpoint, params, _attempt + 1)
 
             # Handle authentication issues
             if response.status_code == 401:
-                print("⚠️ GitHub API authentication failed. Check your token permissions.")
+                print(
+                    "⚠️ GitHub API authentication failed. Check your token permissions."
+                )
                 return None
 
             # Handle not found - only print for main repo check, not for optional resources
@@ -256,11 +277,15 @@ class GitHubLiveConnector(BaseMemoryConnector):
 
         except requests.exceptions.Timeout:
             if _attempt < max_retries:
-                wait = 2 ** _attempt
-                print(f"⚠️ GitHub API request timed out — retrying in {wait}s ({_attempt + 1}/{max_retries})")
+                wait = 2**_attempt
+                print(
+                    f"⚠️ GitHub API request timed out — retrying in {wait}s ({_attempt + 1}/{max_retries})"
+                )
                 time.sleep(wait)
                 return self._github_api_call(endpoint, params, _attempt + 1)
-            print(f"⚠️ GitHub API request timed out after {max_retries} retries: {endpoint}")
+            print(
+                f"⚠️ GitHub API request timed out after {max_retries} retries: {endpoint}"
+            )
             return None
 
         except requests.exceptions.RequestException as e:
@@ -763,6 +788,7 @@ class GitHubLiveConnector(BaseMemoryConnector):
         """Index all generated .md files into the Recall storage layer."""
         try:
             from recall.indexer.vault import VaultIndexer
+
             md_paths = list(root_dir.rglob("*.md"))
             if md_paths:
                 VaultIndexer.index_paths(md_paths)

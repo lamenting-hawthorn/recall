@@ -9,6 +9,7 @@ Selected via RECALL_LLM_PROVIDER env var:
 
 Apache 2.0 — original implementation.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -21,6 +22,7 @@ log = get_logger(__name__)
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
+
 
 def get_client_for_provider(provider: str) -> BaseModelClient:
     """Return the correct ModelClient subclass for the given provider string."""
@@ -42,6 +44,7 @@ def get_client_for_provider(provider: str) -> BaseModelClient:
 
 # ── OpenRouter ────────────────────────────────────────────────────────────────
 
+
 class OpenRouterClient(BaseModelClient):
     """Routes to any model via OpenRouter's OpenAI-compatible API."""
 
@@ -52,6 +55,7 @@ class OpenRouterClient(BaseModelClient):
             OPENROUTER_DEFAULT_MODEL,
             RECALL_LLM_MODEL,
         )
+
         if not OPENROUTER_API_KEY:
             raise ProviderNotConfiguredError(
                 "OPENROUTER_API_KEY is not set.",
@@ -82,11 +86,13 @@ class OpenRouterClient(BaseModelClient):
 
 # ── Ollama ────────────────────────────────────────────────────────────────────
 
+
 class OllamaClient(BaseModelClient):
     """Calls a local Ollama instance. Zero cloud dependencies."""
 
     def __init__(self) -> None:
         from recall.config import OLLAMA_DEFAULT_MODEL, OLLAMA_HOST, RECALL_LLM_MODEL
+
         self._host = OLLAMA_HOST
         self._default_model = RECALL_LLM_MODEL or OLLAMA_DEFAULT_MODEL
 
@@ -113,11 +119,18 @@ class OllamaClient(BaseModelClient):
 
 # ── vLLM ──────────────────────────────────────────────────────────────────────
 
+
 class VLLMClient(BaseModelClient):
     """Calls a local vLLM server (OpenAI-compatible API)."""
 
     def __init__(self) -> None:
-        from recall.config import RECALL_LLM_MODEL, VLLM_DEFAULT_MODEL, VLLM_HOST, VLLM_PORT
+        from recall.config import (
+            RECALL_LLM_MODEL,
+            VLLM_DEFAULT_MODEL,
+            VLLM_HOST,
+            VLLM_PORT,
+        )
+
         self._base_url = f"http://{VLLM_HOST}:{VLLM_PORT}/v1"
         self._default_model = RECALL_LLM_MODEL or VLLM_DEFAULT_MODEL
 
@@ -145,11 +158,17 @@ class VLLMClient(BaseModelClient):
 
 # ── Claude (Anthropic SDK) ────────────────────────────────────────────────────
 
+
 class ClaudeClient(BaseModelClient):
     """Calls the Anthropic API using the official SDK."""
 
     def __init__(self) -> None:
-        from recall.config import ANTHROPIC_API_KEY, ANTHROPIC_DEFAULT_MODEL, RECALL_LLM_MODEL
+        from recall.config import (
+            ANTHROPIC_API_KEY,
+            ANTHROPIC_DEFAULT_MODEL,
+            RECALL_LLM_MODEL,
+        )
+
         if not ANTHROPIC_API_KEY:
             raise ProviderNotConfiguredError(
                 "ANTHROPIC_API_KEY is not set.",
@@ -164,7 +183,9 @@ class ClaudeClient(BaseModelClient):
         try:
             import anthropic
         except ImportError:
-            raise LLMProviderError("anthropic package not installed. Run: uv add anthropic")
+            raise LLMProviderError(
+                "anthropic package not installed. Run: uv add anthropic"
+            )
         # Convert OpenAI-format → Anthropic format
         system_content = ""
         anthropic_messages: list[dict] = []
@@ -195,11 +216,17 @@ class ClaudeClient(BaseModelClient):
 
 # ── LM Studio ─────────────────────────────────────────────────────────────────
 
+
 class LMStudioClient(BaseModelClient):
     """Calls a local LM Studio instance (OpenAI-compatible API)."""
 
     def __init__(self) -> None:
-        from recall.config import LMSTUDIO_DEFAULT_MODEL, LMSTUDIO_HOST, RECALL_LLM_MODEL
+        from recall.config import (
+            LMSTUDIO_DEFAULT_MODEL,
+            LMSTUDIO_HOST,
+            RECALL_LLM_MODEL,
+        )
+
         self._base_url = f"{LMSTUDIO_HOST}/v1"
         self._default_model = RECALL_LLM_MODEL or LMSTUDIO_DEFAULT_MODEL
 

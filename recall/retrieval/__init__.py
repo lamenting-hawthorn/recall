@@ -1,4 +1,5 @@
 """Four-tier hybrid retrieval for Recall v2."""
+
 from recall.retrieval.fts import FTSRetriever
 from recall.retrieval.graph import GraphRetriever
 from recall.retrieval.vector import VectorRetriever

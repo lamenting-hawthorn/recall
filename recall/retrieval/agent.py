@@ -1,4 +1,5 @@
 """AgentRetriever — Tier 4: LLM agent fallback (last resort)."""
+
 from __future__ import annotations
 
 from recall.core.retriever import BaseRetriever, RetrievalResult
@@ -42,6 +43,7 @@ class AgentRetriever(BaseRetriever):
         This is intentionally slow — call only when tiers 1–3 are insufficient.
         """
         import asyncio
+
         t0 = self._now_ms()
         try:
             from recall.config import RECALL_VAULT_PATH
@@ -55,7 +57,9 @@ class AgentRetriever(BaseRetriever):
             reply = (result.reply or "").strip()
 
             if not reply:
-                return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+                return RetrievalResult(
+                    source_tier=self.tier, latency_ms=self._now_ms() - t0
+                )
 
             # Write the agent reply as an observation so callers can use get_observations()
             obs_id = -1
@@ -78,4 +82,6 @@ class AgentRetriever(BaseRetriever):
             )
         except Exception as exc:
             log.warning("agent_retriever_failed", error=str(exc))
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )

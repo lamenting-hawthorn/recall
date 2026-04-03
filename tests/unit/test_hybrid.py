@@ -1,4 +1,5 @@
 """Unit tests for HybridRetriever — tiered orchestration and graceful degradation."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -34,12 +35,16 @@ def chroma() -> ChromaManager:
 
 
 @pytest_asyncio.fixture
-async def retriever(db: DatabaseManager, graph: KuzuGraphManager, chroma: ChromaManager) -> HybridRetriever:
+async def retriever(
+    db: DatabaseManager, graph: KuzuGraphManager, chroma: ChromaManager
+) -> HybridRetriever:
     return HybridRetriever(db=db, graph=graph, chroma=chroma)
 
 
 @pytest.mark.asyncio
-async def test_tier1_finds_keyword_match(db: DatabaseManager, retriever: HybridRetriever) -> None:
+async def test_tier1_finds_keyword_match(
+    db: DatabaseManager, retriever: HybridRetriever
+) -> None:
     await db.write_observation("alice works at acme corporation")
     result = await retriever.search("alice", tier_limit=1)
     assert result.source_tier == 1
@@ -53,7 +58,9 @@ async def test_empty_query_returns_empty(retriever: HybridRetriever) -> None:
 
 
 @pytest.mark.asyncio
-async def test_tier3_skipped_when_unavailable(db: DatabaseManager, retriever: HybridRetriever) -> None:
+async def test_tier3_skipped_when_unavailable(
+    db: DatabaseManager, retriever: HybridRetriever
+) -> None:
     await db.write_observation("vector search test")
     # With RECALL_VECTOR=false, tier 3 is skipped — no error raised
     result = await retriever.search("vector search test", tier_limit=3)
@@ -61,7 +68,9 @@ async def test_tier3_skipped_when_unavailable(db: DatabaseManager, retriever: Hy
 
 
 @pytest.mark.asyncio
-async def test_get_observations(db: DatabaseManager, retriever: HybridRetriever) -> None:
+async def test_get_observations(
+    db: DatabaseManager, retriever: HybridRetriever
+) -> None:
     oid = await db.write_observation("full content fetch")
     obs = await retriever.get_observations([oid])
     assert len(obs) == 1
@@ -80,14 +89,18 @@ async def test_get_timeline(db: DatabaseManager, retriever: HybridRetriever) -> 
 
 
 @pytest.mark.asyncio
-async def test_latency_recorded(db: DatabaseManager, retriever: HybridRetriever) -> None:
+async def test_latency_recorded(
+    db: DatabaseManager, retriever: HybridRetriever
+) -> None:
     await db.write_observation("latency test content")
     result = await retriever.search("latency test", tier_limit=1)
     assert result.latency_ms >= 0
 
 
 @pytest.mark.asyncio
-async def test_dedup_across_tiers(db: DatabaseManager, retriever: HybridRetriever) -> None:
+async def test_dedup_across_tiers(
+    db: DatabaseManager, retriever: HybridRetriever
+) -> None:
     await db.write_observation("dedup test alice")
     result = await retriever.search("dedup test alice", tier_limit=2)
     # IDs should be deduplicated — no duplicates in result

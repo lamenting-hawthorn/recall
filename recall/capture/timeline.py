@@ -1,4 +1,5 @@
 """TimelineQuery — returns chronological context around an observation."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

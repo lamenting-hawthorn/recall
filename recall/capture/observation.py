@@ -1,4 +1,5 @@
 """ObservationCapture — writes a structured observation record on every MCP tool call."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

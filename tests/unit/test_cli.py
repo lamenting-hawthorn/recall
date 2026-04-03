@@ -1,4 +1,5 @@
 """Unit tests for recall CLI (__main__.py) — argument parsing and command dispatch."""
+
 from __future__ import annotations
 
 import sys
@@ -12,6 +13,7 @@ import pytest
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _parse(args: list[str]):
     """Parse CLI args without executing any command."""
     import argparse
@@ -23,18 +25,21 @@ def _parse(args: list[str]):
     def fake_dispatch(ns):
         captured["ns"] = ns
 
-    with patch("recall.__main__.cmd_serve", fake_dispatch), \
-         patch("recall.__main__.cmd_chat", fake_dispatch), \
-         patch("recall.__main__.cmd_backup", fake_dispatch), \
-         patch("recall.__main__.cmd_restore", fake_dispatch), \
-         patch("recall.__main__.cmd_connect", fake_dispatch), \
-         patch("sys.argv", ["recall"] + args):
+    with (
+        patch("recall.__main__.cmd_serve", fake_dispatch),
+        patch("recall.__main__.cmd_chat", fake_dispatch),
+        patch("recall.__main__.cmd_backup", fake_dispatch),
+        patch("recall.__main__.cmd_restore", fake_dispatch),
+        patch("recall.__main__.cmd_connect", fake_dispatch),
+        patch("sys.argv", ["recall"] + args),
+    ):
         main()
 
     return captured.get("ns")
 
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
+
 
 def test_serve_no_worker():
     ns = _parse(["serve"])
@@ -86,10 +91,12 @@ def test_no_subcommand_exits():
     with patch("sys.argv", ["recall"]):
         with pytest.raises(SystemExit):
             from recall.__main__ import main
+
             main()
 
 
 # ── cmd_backup ────────────────────────────────────────────────────────────────
+
 
 def test_cmd_backup_creates_archive(tmp_path: Path):
     import argparse
@@ -104,8 +111,10 @@ def test_cmd_backup_creates_archive(tmp_path: Path):
     output = tmp_path / "backup.tar.gz"
 
     ns = argparse.Namespace(output=str(output))
-    with patch.object(cfg, "RECALL_VAULT_PATH", vault), \
-         patch.object(cfg, "RECALL_DB_PATH", db_file):
+    with (
+        patch.object(cfg, "RECALL_VAULT_PATH", vault),
+        patch.object(cfg, "RECALL_DB_PATH", db_file),
+    ):
         cmd_backup(ns)
 
     assert output.exists()
@@ -116,6 +125,7 @@ def test_cmd_backup_creates_archive(tmp_path: Path):
 
 
 # ── cmd_restore ───────────────────────────────────────────────────────────────
+
 
 def test_cmd_restore_missing_archive_exits(tmp_path: Path):
     import argparse
@@ -144,8 +154,10 @@ def test_cmd_restore_extracts_files(tmp_path: Path):
         tar.add(str(db_src), arcname="recall.db")
 
     ns = argparse.Namespace(archive=str(archive))
-    with patch("recall.config.RECALL_VAULT_PATH", vault_restore), \
-         patch("recall.config.RECALL_DB_PATH", db_restore):
+    with (
+        patch("recall.config.RECALL_VAULT_PATH", vault_restore),
+        patch("recall.config.RECALL_DB_PATH", db_restore),
+    ):
         cmd_restore(ns)
 
     assert (vault_restore / "note.md").exists()
@@ -154,14 +166,17 @@ def test_cmd_restore_extracts_files(tmp_path: Path):
 
 # ── _worker_port ──────────────────────────────────────────────────────────────
 
+
 def test_worker_port_default():
     from recall.__main__ import _worker_port
+
     port = _worker_port()
     assert isinstance(port, int)
     assert port > 0
 
 
 # ── Unknown connector ─────────────────────────────────────────────────────────
+
 
 def test_connect_unknown_connector_exits():
     import argparse
