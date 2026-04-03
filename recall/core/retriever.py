@@ -1,4 +1,5 @@
 """BaseRetriever ABC — implemented by each of the four retrieval tiers."""
+
 from __future__ import annotations
 
 import time

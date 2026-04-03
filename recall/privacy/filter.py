@@ -5,6 +5,7 @@ It is visible only to the agent during its navigation pass.
 
 Apache 2.0 — original implementation.
 """
+
 from __future__ import annotations
 
 import re

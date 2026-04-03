@@ -370,6 +370,7 @@ class GoogleDocsLiveConnector(BaseMemoryConnector):
         # Index all generated markdown files into Recall storage
         try:
             from recall.indexer.vault import VaultIndexer
+
             md_paths = list(entities_dir.rglob("*.md"))
             if md_paths:
                 VaultIndexer.index_paths(md_paths)

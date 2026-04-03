@@ -1,4 +1,5 @@
 """Structured JSON logging for Recall v2, built on structlog."""
+
 from __future__ import annotations
 
 import logging

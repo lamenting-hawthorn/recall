@@ -1,4 +1,5 @@
 """DatabaseManager — SQLite + FTS5 source-of-truth storage for Recall v2."""
+
 from __future__ import annotations
 
 import hashlib
@@ -132,7 +133,9 @@ class DatabaseManager(BaseStorage):
             ) as cur:
                 deleted = cur.rowcount > 0
             if deleted:
-                await self._conn.execute("DELETE FROM content_fts WHERE obs_id = ?", (id,))
+                await self._conn.execute(
+                    "DELETE FROM content_fts WHERE obs_id = ?", (id,)
+                )
             await self._conn.commit()
             return deleted
         except Exception as exc:
@@ -202,7 +205,15 @@ class DatabaseManager(BaseStorage):
                 """INSERT INTO observations
                    (session_id, content, content_hash, tier_used, latency_ms, tool_name, type)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (session_id, content, content_hash, tier_used, latency_ms, tool_name, obs_type),
+                (
+                    session_id,
+                    content,
+                    content_hash,
+                    tier_used,
+                    latency_ms,
+                    tool_name,
+                    obs_type,
+                ),
             ) as cur:
                 obs_id = cur.lastrowid
             await self._conn.execute(
@@ -253,7 +264,8 @@ class DatabaseManager(BaseStorage):
         await self._ensure_init()
         try:
             async with self._conn.execute(
-                "SELECT created_at, session_id FROM observations WHERE id = ?", (obs_id,)
+                "SELECT created_at, session_id FROM observations WHERE id = ?",
+                (obs_id,),
             ) as cur:
                 anchor = await cur.fetchone()
             if not anchor:
@@ -271,7 +283,9 @@ class DatabaseManager(BaseStorage):
             """
             async with self._conn.execute(before_query, (ts, sid, sid, window)) as cur:
                 before = [dict(r) for r in await cur.fetchall()]
-            async with self._conn.execute(after_query, (ts, sid, sid, window + 1)) as cur:
+            async with self._conn.execute(
+                after_query, (ts, sid, sid, window + 1)
+            ) as cur:
                 after = [dict(r) for r in await cur.fetchall()]
             return list(reversed(before)) + after
         except Exception as exc:
@@ -279,7 +293,9 @@ class DatabaseManager(BaseStorage):
 
     # ── Entity metadata ───────────────────────────────────────────────────────
 
-    async def upsert_entity(self, name: str, file_path: str, wikilink_count: int = 0) -> None:
+    async def upsert_entity(
+        self, name: str, file_path: str, wikilink_count: int = 0
+    ) -> None:
         await self._ensure_init()
         try:
             await self._conn.execute(

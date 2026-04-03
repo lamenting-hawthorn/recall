@@ -3,6 +3,7 @@
 Also starts a watchdog file-watcher that re-indexes changed files live
 without restarting the MCP server.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -132,9 +133,7 @@ class VaultIndexer:
                 try:
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        asyncio.run_coroutine_threadsafe(
-                            indexer.index_file(p), loop
-                        )
+                        asyncio.run_coroutine_threadsafe(indexer.index_file(p), loop)
                     else:
                         asyncio.run(indexer.index_file(p))
                 except Exception as exc:

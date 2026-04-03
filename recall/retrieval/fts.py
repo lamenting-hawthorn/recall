@@ -1,4 +1,5 @@
 """FTSRetriever — Tier 1: SQLite FTS5 keyword search."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -36,7 +37,12 @@ class FTSRetriever(BaseRetriever):
         try:
             obs_ids = await self._db.fts_search(query, limit=limit)
             latency = self._now_ms() - t0
-            log.debug("fts_search", query=query, found=len(obs_ids), latency_ms=round(latency, 2))
+            log.debug(
+                "fts_search",
+                query=query,
+                found=len(obs_ids),
+                latency_ms=round(latency, 2),
+            )
             return RetrievalResult(
                 obs_ids=obs_ids,
                 source_tier=self.tier,
@@ -44,4 +50,6 @@ class FTSRetriever(BaseRetriever):
             )
         except Exception as exc:
             log.warning("fts_retriever_failed", error=str(exc))
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )

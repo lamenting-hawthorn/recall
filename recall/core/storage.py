@@ -1,4 +1,5 @@
 """BaseStorage ABC — implemented by DatabaseManager, KuzuGraphManager, ChromaManager."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

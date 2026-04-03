@@ -18,6 +18,7 @@ Usage examples:
   recall connect chatgpt ~/Downloads/chatgpt-export.zip
   recall connect github owner/repo --token ghp_xxx
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,19 +45,28 @@ def cmd_serve(args: argparse.Namespace) -> None:
             [sys.executable, "-m", "worker.app"],
             cwd=str(_ROOT),
         )
-        print(f"Worker started (pid {worker_proc.pid}), listening on :{_worker_port()}", flush=True)
+        print(
+            f"Worker started (pid {worker_proc.pid}), listening on :{_worker_port()}",
+            flush=True,
+        )
         try:
             # Run MCP server in foreground
-            os.execv(sys.executable, [sys.executable, str(_ROOT / "mcp_server" / "server.py")])
+            os.execv(
+                sys.executable,
+                [sys.executable, str(_ROOT / "mcp_server" / "server.py")],
+            )
         except KeyboardInterrupt:
             worker_proc.terminate()
     else:
-        os.execv(sys.executable, [sys.executable, str(_ROOT / "mcp_server" / "server.py")])
+        os.execv(
+            sys.executable, [sys.executable, str(_ROOT / "mcp_server" / "server.py")]
+        )
 
 
 def _worker_port() -> int:
     try:
         from recall.config import RECALL_WORKER_PORT
+
         return RECALL_WORKER_PORT
     except Exception:
         return 37777
@@ -72,7 +82,11 @@ def cmd_backup(args: argparse.Namespace) -> None:
     from recall.config import RECALL_DB_PATH, RECALL_VAULT_PATH
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    output = Path(args.output) if args.output else Path.cwd() / f"recall_backup_{timestamp}.tar.gz"
+    output = (
+        Path(args.output)
+        if args.output
+        else Path.cwd() / f"recall_backup_{timestamp}.tar.gz"
+    )
 
     print(f"Creating backup: {output}", flush=True)
     with tarfile.open(output, "w:gz") as tar:
@@ -82,7 +96,10 @@ def cmd_backup(args: argparse.Namespace) -> None:
                 print(f"  + {md.relative_to(RECALL_VAULT_PATH)}", flush=True)
         if RECALL_DB_PATH.exists():
             tar.add(str(RECALL_DB_PATH), arcname="recall.db")
-            print(f"  + recall.db ({RECALL_DB_PATH.stat().st_size // 1024} KB)", flush=True)
+            print(
+                f"  + recall.db ({RECALL_DB_PATH.stat().st_size // 1024} KB)",
+                flush=True,
+            )
 
     print(f"Backup complete: {output} ({output.stat().st_size // 1024} KB)", flush=True)
 
@@ -100,7 +117,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
     with tarfile.open(archive, "r:gz") as tar:
         for member in tar.getmembers():
             if member.name.startswith("vault/"):
-                rel = member.name[len("vault/"):]
+                rel = member.name[len("vault/") :]
                 dest = RECALL_VAULT_PATH / rel
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 f = tar.extractfile(member)
@@ -142,6 +159,7 @@ def cmd_connect(args: argparse.Namespace) -> None:
     module_path, cls_name = fqcn.rsplit(".", 1)
     try:
         import importlib
+
         module = importlib.import_module(module_path)
         cls = getattr(module, cls_name)
     except (ImportError, AttributeError) as exc:
@@ -149,6 +167,7 @@ def cmd_connect(args: argparse.Namespace) -> None:
         sys.exit(1)
 
     from recall.config import RECALL_VAULT_PATH
+
     kwargs: dict = {}
     if token:
         kwargs["token"] = token
@@ -168,14 +187,18 @@ def main() -> None:
 
     # serve
     p_serve = sub.add_parser("serve", help="Start the MCP server")
-    p_serve.add_argument("--worker", action="store_true", help="Also start Worker HTTP API on :37777")
+    p_serve.add_argument(
+        "--worker", action="store_true", help="Also start Worker HTTP API on :37777"
+    )
 
     # chat
     sub.add_parser("chat", help="Interactive terminal REPL")
 
     # backup
     p_backup = sub.add_parser("backup", help="Archive vault + database")
-    p_backup.add_argument("--output", "-o", help="Output path (default: cwd/recall_backup_<ts>.tar.gz)")
+    p_backup.add_argument(
+        "--output", "-o", help="Output path (default: cwd/recall_backup_<ts>.tar.gz)"
+    )
 
     # restore
     p_restore = sub.add_parser("restore", help="Restore from backup archive")
@@ -183,10 +206,16 @@ def main() -> None:
 
     # connect
     p_connect = sub.add_parser("connect", help="Import data via a memory connector")
-    p_connect.add_argument("connector", help="Connector type: chatgpt|notion|nuclino|github|google-docs")
+    p_connect.add_argument(
+        "connector", help="Connector type: chatgpt|notion|nuclino|github|google-docs"
+    )
     p_connect.add_argument("source", help="Source path, repo name, or folder ID")
-    p_connect.add_argument("--max-items", "-n", type=int, default=None, help="Limit items to import")
-    p_connect.add_argument("--token", "-t", default=None, help="API token (GitHub, Google Docs)")
+    p_connect.add_argument(
+        "--max-items", "-n", type=int, default=None, help="Limit items to import"
+    )
+    p_connect.add_argument(
+        "--token", "-t", default=None, help="API token (GitHub, Google Docs)"
+    )
 
     args = parser.parse_args()
     dispatch = {

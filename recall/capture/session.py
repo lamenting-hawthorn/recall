@@ -1,4 +1,5 @@
 """SessionManager — creates and closes Recall sessions with AI-generated summaries."""
+
 from __future__ import annotations
 
 import uuid
@@ -59,7 +60,9 @@ class SessionManager:
                     )
                     summary = summary.strip()
             except Exception as exc:
-                log.warning("session_summary_failed", session_id=session_id, error=str(exc))
+                log.warning(
+                    "session_summary_failed", session_id=session_id, error=str(exc)
+                )
                 summary = f"[summary generation failed: {exc}]"
 
         await self._db.close_session(session_id, summary)

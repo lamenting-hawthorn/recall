@@ -1,4 +1,5 @@
 """Unit tests for MemoryCompressor."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,12 +23,16 @@ async def db(tmp_path: Path) -> DatabaseManager:
 @pytest.fixture
 def mock_client() -> MagicMock:
     client = MagicMock()
-    client.chat_completion = AsyncMock(return_value="Compressed summary of recent observations.")
+    client.chat_completion = AsyncMock(
+        return_value="Compressed summary of recent observations."
+    )
     return client
 
 
 @pytest.mark.asyncio
-async def test_no_trigger_below_threshold(db: DatabaseManager, mock_client: MagicMock) -> None:
+async def test_no_trigger_below_threshold(
+    db: DatabaseManager, mock_client: MagicMock
+) -> None:
     """maybe_compress should not trigger LLM before threshold is reached."""
     compressor = MemoryCompressor(db, model_client=mock_client, compress_every=10)
     sid = await db.create_session()
@@ -37,7 +42,9 @@ async def test_no_trigger_below_threshold(db: DatabaseManager, mock_client: Magi
 
 
 @pytest.mark.asyncio
-async def test_triggers_at_threshold(db: DatabaseManager, mock_client: MagicMock) -> None:
+async def test_triggers_at_threshold(
+    db: DatabaseManager, mock_client: MagicMock
+) -> None:
     """maybe_compress calls LLM exactly when write_count % compress_every == 0."""
     compressor = MemoryCompressor(db, model_client=mock_client, compress_every=5)
     sid = await db.create_session()
@@ -58,14 +65,18 @@ async def test_no_client_skips_silently(db: DatabaseManager) -> None:
 
 
 @pytest.mark.asyncio
-async def test_set_model_client_injects_later(db: DatabaseManager, mock_client: MagicMock) -> None:
+async def test_set_model_client_injects_later(
+    db: DatabaseManager, mock_client: MagicMock
+) -> None:
     compressor = MemoryCompressor(db, compress_every=5)
     compressor.set_model_client(mock_client)
     assert compressor._model_client is mock_client
 
 
 @pytest.mark.asyncio
-async def test_too_few_observations_skips(db: DatabaseManager, mock_client: MagicMock) -> None:
+async def test_too_few_observations_skips(
+    db: DatabaseManager, mock_client: MagicMock
+) -> None:
     """Compression requires at least 5 observations; fewer → no LLM call."""
     compressor = MemoryCompressor(db, model_client=mock_client, compress_every=1)
     sid = await db.create_session()

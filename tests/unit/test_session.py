@@ -1,4 +1,5 @@
 """Unit tests for SessionManager — start/end/summary flow."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,13 +59,17 @@ async def test_end_writes_summary(db: DatabaseManager, mock_client: MagicMock) -
         await db.write_observation(f"observation {i}", session_id=sid)
     await mgr.end(sid, mock_client)
     # Summary should be stored
-    async with db._conn.execute("SELECT summary FROM sessions WHERE id=?", (sid,)) as cur:
+    async with db._conn.execute(
+        "SELECT summary FROM sessions WHERE id=?", (sid,)
+    ) as cur:
         row = await cur.fetchone()
     assert row is not None
 
 
 @pytest.mark.asyncio
-async def test_end_no_observations_skips_llm(db: DatabaseManager, mock_client: MagicMock) -> None:
+async def test_end_no_observations_skips_llm(
+    db: DatabaseManager, mock_client: MagicMock
+) -> None:
     """When session has no observations, no LLM call should be made."""
     mgr = SessionManager(db)
     sid = await mgr.start()

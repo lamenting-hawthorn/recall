@@ -3,6 +3,7 @@
 Only active when RECALL_VECTOR=true. Degrades gracefully when chromadb
 is not installed or the flag is off.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,6 +20,7 @@ def _import_chroma() -> Any:
         return None
     try:
         import chromadb
+
         return chromadb
     except ImportError:
         log.warning(

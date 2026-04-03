@@ -1,4 +1,5 @@
 """Unit tests for ModelClient implementations — mocked HTTP."""
+
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,9 +24,11 @@ MESSAGES = [{"role": "user", "content": "hello"}]
 # OpenRouterClient
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_openrouter_returns_text(monkeypatch: pytest.MonkeyPatch) -> None:
     import recall.config as cfg
+
     monkeypatch.setattr(cfg, "OPENROUTER_API_KEY", "test-key")
 
     mock_response = MagicMock()
@@ -46,6 +49,7 @@ def test_openrouter_raises_without_api_key(monkeypatch: pytest.MonkeyPatch) -> N
     # Need to reload config so it picks up cleared env var
     import importlib
     import recall.config as cfg
+
     monkeypatch.setattr(cfg, "OPENROUTER_API_KEY", "")
     with pytest.raises(ProviderNotConfiguredError):
         OpenRouterClient()
@@ -54,6 +58,7 @@ def test_openrouter_raises_without_api_key(monkeypatch: pytest.MonkeyPatch) -> N
 # ---------------------------------------------------------------------------
 # OllamaClient — mock httpx
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_ollama_returns_text() -> None:
@@ -76,6 +81,7 @@ async def test_ollama_returns_text() -> None:
 # VLLMClient — mock openai
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_vllm_returns_text() -> None:
     mock_response = MagicMock()
@@ -94,6 +100,7 @@ async def test_vllm_returns_text() -> None:
 # ---------------------------------------------------------------------------
 # LMStudioClient — mock openai
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_lmstudio_returns_text() -> None:
@@ -114,10 +121,12 @@ async def test_lmstudio_returns_text() -> None:
 # ClaudeClient — mock anthropic
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_claude_converts_messages(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("anthropic", reason="anthropic package not installed")
     import recall.config as cfg
+
     monkeypatch.setattr(cfg, "ANTHROPIC_API_KEY", "test-anthropic-key")
 
     mock_resp = MagicMock()
@@ -133,7 +142,9 @@ async def test_claude_converts_messages(monkeypatch: pytest.MonkeyPatch) -> None
         instance.messages.create = AsyncMock(return_value=mock_resp)
 
         client = ClaudeClient()
-        result = await client.chat_completion(messages_with_system, model="claude-haiku-4-5-20251001")
+        result = await client.chat_completion(
+            messages_with_system, model="claude-haiku-4-5-20251001"
+        )
 
     assert result == "hi from claude"
 
@@ -141,6 +152,7 @@ async def test_claude_converts_messages(monkeypatch: pytest.MonkeyPatch) -> None
 def test_claude_raises_without_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("anthropic", reason="anthropic package not installed")
     import recall.config as cfg
+
     monkeypatch.setattr(cfg, "ANTHROPIC_API_KEY", "")
     with pytest.raises(ProviderNotConfiguredError):
         ClaudeClient()
@@ -150,8 +162,10 @@ def test_claude_raises_without_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
 # Factory
 # ---------------------------------------------------------------------------
 
+
 def test_get_client_for_provider_openrouter(monkeypatch: pytest.MonkeyPatch) -> None:
     import recall.config as cfg
+
     monkeypatch.setattr(cfg, "OPENROUTER_API_KEY", "fake-key")
     client = get_client_for_provider("openrouter")
     assert isinstance(client, OpenRouterClient)

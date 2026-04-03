@@ -1,4 +1,5 @@
 """VectorRetriever — Tier 3: ChromaDB semantic search (optional)."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -34,11 +35,18 @@ class VectorRetriever(BaseRetriever):
     async def search(self, query: str, limit: int = 10) -> RetrievalResult:
         t0 = self._now_ms()
         if not self.available or self._chroma is None:
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )
         try:
             obs_ids = await self._chroma.search(query, limit=limit)
             latency = self._now_ms() - t0
-            log.debug("vector_search", query=query, found=len(obs_ids), latency_ms=round(latency, 2))
+            log.debug(
+                "vector_search",
+                query=query,
+                found=len(obs_ids),
+                latency_ms=round(latency, 2),
+            )
             return RetrievalResult(
                 obs_ids=obs_ids,
                 source_tier=self.tier,
@@ -46,4 +54,6 @@ class VectorRetriever(BaseRetriever):
             )
         except Exception as exc:
             log.warning("vector_retriever_failed", error=str(exc))
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )

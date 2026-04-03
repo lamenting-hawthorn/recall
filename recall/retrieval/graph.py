@@ -1,4 +1,5 @@
 """GraphRetriever — Tier 2: Kuzu graph expansion of FTS hits."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -58,16 +59,22 @@ class GraphRetriever(BaseRetriever):
         """
         t0 = self._now_ms()
         if not self.available or not seed_obs_ids:
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )
 
         try:
             entity_names = await self._db.entities_for_obs_ids(seed_obs_ids)
             if not entity_names:
-                return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+                return RetrievalResult(
+                    source_tier=self.tier, latency_ms=self._now_ms() - t0
+                )
 
             related = self._graph.expand(entity_names, hops=hops)
             if not related:
-                return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+                return RetrievalResult(
+                    source_tier=self.tier, latency_ms=self._now_ms() - t0
+                )
 
             new_ids = await self._db.obs_ids_for_entities(related)
             exclude = exclude_ids or set()
@@ -90,4 +97,6 @@ class GraphRetriever(BaseRetriever):
             )
         except Exception as exc:
             log.warning("graph_retriever_failed", error=str(exc))
-            return RetrievalResult(source_tier=self.tier, latency_ms=self._now_ms() - t0)
+            return RetrievalResult(
+                source_tier=self.tier, latency_ms=self._now_ms() - t0
+            )

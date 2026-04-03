@@ -8,6 +8,7 @@ RetrievalResult with source_tier metadata for each obs_id.
 
 Apache 2.0 — original implementation.
 """
+
 from __future__ import annotations
 
 import time
@@ -113,7 +114,10 @@ class HybridRetriever:
         # ── Tier 3: ChromaDB (optional) ───────────────────────────────────────
         if tier_limit >= 3:
             if not self._vector.available:
-                log.debug("tier3_skipped", reason="RECALL_VECTOR=false or chromadb unavailable")
+                log.debug(
+                    "tier3_skipped",
+                    reason="RECALL_VECTOR=false or chromadb unavailable",
+                )
             else:
                 r3 = await self._vector.search(query, limit=limit)
                 new_ids = [i for i in r3.obs_ids if i not in set(all_ids)]
