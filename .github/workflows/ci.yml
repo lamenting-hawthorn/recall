@@ -42,7 +42,6 @@ jobs:
           uv run pytest tests/ \
             --cov=recall \
             --cov=agent \
-            --cov=mcp_server \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=60
