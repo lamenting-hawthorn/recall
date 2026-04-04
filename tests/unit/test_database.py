@@ -160,3 +160,72 @@ async def test_delete_nonexistent(db: DatabaseManager) -> None:
 async def test_get_observations_empty_ids(db: DatabaseManager) -> None:
     result = await db.get_observations([])
     assert result == []
+
+
+# ── get_entity_last_indexed ───────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_entity_last_indexed_missing(db: DatabaseManager) -> None:
+    result = await db.get_entity_last_indexed("does-not-exist")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_entity_last_indexed_after_upsert(db: DatabaseManager) -> None:
+    import time
+
+    before = time.time()
+    await db.upsert_entity("my/note", "/vault/my/note.md", wikilink_count=2)
+    after = time.time()
+
+    ts = await db.get_entity_last_indexed("my/note")
+    assert ts is not None
+    assert before <= ts <= after
+
+
+# ── entities_for_obs_ids (FTS5 path) ─────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_entities_for_obs_ids_finds_mention(db: DatabaseManager) -> None:
+    await db.upsert_entity("Alice", "/vault/Alice.md")
+    obs_id = await db.write_observation("Alice works at Acme Corp.")
+    names = await db.entities_for_obs_ids([obs_id])
+    assert "Alice" in names
+
+
+@pytest.mark.asyncio
+async def test_entities_for_obs_ids_empty_input(db: DatabaseManager) -> None:
+    assert await db.entities_for_obs_ids([]) == []
+
+
+@pytest.mark.asyncio
+async def test_entities_for_obs_ids_no_match(db: DatabaseManager) -> None:
+    await db.upsert_entity("Zzz", "/vault/Zzz.md")
+    obs_id = await db.write_observation("Content that does not mention that entity.")
+    names = await db.entities_for_obs_ids([obs_id])
+    assert "Zzz" not in names
+
+
+# ── obs_ids_for_entities (FTS5 path) ─────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_obs_ids_for_entities_finds_match(db: DatabaseManager) -> None:
+    obs_id = await db.write_observation("Bob joined the team last quarter.")
+    ids = await db.obs_ids_for_entities(["Bob"])
+    assert obs_id in ids
+
+
+@pytest.mark.asyncio
+async def test_obs_ids_for_entities_empty_input(db: DatabaseManager) -> None:
+    assert await db.obs_ids_for_entities([]) == []
+
+
+@pytest.mark.asyncio
+async def test_obs_ids_for_entities_dedup(db: DatabaseManager) -> None:
+    obs_id = await db.write_observation("Carol and Carol again.")
+    # Searching for the same entity twice should not duplicate the obs_id
+    ids = await db.obs_ids_for_entities(["Carol", "Carol"])
+    assert ids.count(obs_id) == 1
