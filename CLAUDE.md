@@ -53,12 +53,13 @@ CI runs pytest + black formatting checks (`.github/workflows/ci.yml`).
 
 ### Workspace Structure
 
-uv workspace monorepo with three packages:
+uv workspace monorepo with four packages:
 
 | Package | Path | Purpose |
 |---------|------|---------|
 | `agent` | `agent/` | Core agent logic — conversation loop, sandboxed execution, file tools, LLM clients |
 | `mcp-server` | `mcp_server/` | FastMCP wrapper exposing agent as MCP tool, stdio + HTTP transports |
+| `recall-core` | `recall/` | v2 layer — hybrid retrieval, graph/vector/SQLite storage, session tracking, Worker HTTP API |
 | `memory_connectors` | `memory_connectors/` | Plugin system for importing data (ChatGPT, Notion, Nuclino, GitHub, Google Docs) |
 
 ### Data Flow
@@ -78,7 +79,45 @@ agent/agent.py — conversation loop, up to 20 tool turns
         │
         ▼
   Memory Vault (local markdown files with [[wikilinks]])
+        │
+        ▼ (v2 indexing — when Worker is running)
+  recall/ — HybridRetriever (FTS5 → graph → vector → agent, 4 tiers)
+  ├── recall/storage/database.py  — SQLite via aiosqlite
+  ├── recall/storage/graph.py     — Kuzu graph DB
+  ├── recall/storage/vector.py    — Chroma vector store
+  └── recall/indexer/vault.py     — walks vault, populates stores
 ```
+
+### recall CLI (v2 entry point)
+
+The `recall` package installs a CLI (`uv run recall` or just `recall` after install):
+
+```bash
+recall serve               # Start MCP server (stdio)
+recall serve --worker      # MCP server + Worker HTTP API on :37777
+recall chat                # Interactive terminal REPL
+recall backup              # Archive vault + SQLite → timestamped .tar.gz
+recall restore <file>      # Restore from archive
+recall connect chatgpt ~/Downloads/export.zip
+recall connect github owner/repo --token ghp_xxx
+```
+
+### Worker HTTP API (`:37777`)
+
+Optional service started via `recall serve --worker`. Provides:
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Liveness + DB/graph/vector readiness |
+| `GET /sessions` | Recent sessions with summaries |
+| `GET /observations` | Paginated observations, filterable by type |
+| `POST /search` | Hybrid search (FTS5 → graph → vector → agent) |
+| `POST /index/rebuild` | Re-index entire vault |
+| `GET /backup` | Stream tar.gz backup |
+| `GET /stats` | Memory metrics |
+| `GET /` | Static session viewer UI (`worker/static/index.html`) |
+
+Auth: `Authorization: Bearer <RECALL_API_KEY>` header; disabled when env var unset.
 
 ### Key Design Decisions
 
@@ -107,5 +146,6 @@ agent/agent.py — conversation loop, up to 20 tool turns
 
 - **Python**: 3.11 (exact, enforced in pyproject.toml)
 - **Config files**: `.memory_path` (memory dir), `.mlx_model_name` (model), `.filters` (privacy rules)
-- **Env vars**: see `.env.example` — OPENROUTER_API_KEY, VLLM_HOST/PORT, LOG_LEVEL, MCP_TRANSPORT
+- **Env vars**: see `.env.example` — OPENROUTER_API_KEY, VLLM_HOST/PORT, LOG_LEVEL, MCP_TRANSPORT; v2 adds RECALL_VAULT_PATH, RECALL_DB_PATH, RECALL_WORKER_PORT (default 37777), RECALL_API_KEY
 - **Remotes**: `origin` = fork (`lamenting-hawthorn/recall`), `upstream` = `firstbatchxyz/mem-agent-mcp`
+- **Docker**: `docker-compose.yml` + `Dockerfile` available for containerized deployment
