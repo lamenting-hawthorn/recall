@@ -293,6 +293,15 @@ class DatabaseManager(BaseStorage):
 
     # ── Entity metadata ───────────────────────────────────────────────────────
 
+    async def get_entity_last_indexed(self, name: str) -> float | None:
+        """Return last_indexed timestamp for an entity, or None if not indexed yet."""
+        await self._ensure_init()
+        async with self._conn.execute(
+            "SELECT last_indexed FROM entity_metadata WHERE name = ?", (name,)
+        ) as cur:
+            row = await cur.fetchone()
+        return row[0] if row else None
+
     async def upsert_entity(
         self, name: str, file_path: str, wikilink_count: int = 0
     ) -> None:
@@ -317,11 +326,14 @@ class DatabaseManager(BaseStorage):
             return []
         await self._ensure_init()
         placeholders = ",".join("?" * len(obs_ids))
-        # Simple heuristic: find entity names that appear in observation content
+        # Use FTS5 EXISTS subquery — index-accelerated vs instr() full scan
         async with self._conn.execute(
             f"""SELECT DISTINCT em.name FROM entity_metadata em
-                JOIN observations o ON instr(o.content, em.name) > 0
-                WHERE o.id IN ({placeholders})""",
+                WHERE EXISTS (
+                    SELECT 1 FROM content_fts
+                    WHERE content_fts MATCH ('"' || em.name || '"')
+                    AND obs_id IN ({placeholders})
+                )""",
             obs_ids,
         ) as cur:
             rows = await cur.fetchall()
@@ -334,9 +346,10 @@ class DatabaseManager(BaseStorage):
         await self._ensure_init()
         results: list[int] = []
         for name in entity_names:
+            # FTS5 phrase match — index-accelerated vs instr() full scan
             async with self._conn.execute(
-                "SELECT id FROM observations WHERE instr(content, ?) > 0 LIMIT 20",
-                (name,),
+                'SELECT obs_id FROM content_fts WHERE content_fts MATCH ? LIMIT 20',
+                (f'"{name}"',),
             ) as cur:
                 rows = await cur.fetchall()
             results.extend(row[0] for row in rows)

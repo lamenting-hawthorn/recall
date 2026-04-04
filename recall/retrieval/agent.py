@@ -27,6 +27,7 @@ class AgentRetriever(BaseRetriever):
     ) -> None:
         self._memory_path = memory_path
         self._db = db
+        self._agent = None  # lazy-initialized on first call
 
     @property
     def tier(self) -> int:
@@ -50,10 +51,11 @@ class AgentRetriever(BaseRetriever):
             from agent import Agent
 
             mem_path = self._memory_path or str(RECALL_VAULT_PATH)
-            agent = Agent(memory_path=mem_path, predetermined_memory_path=False)
+            if self._agent is None:
+                self._agent = Agent(memory_path=mem_path, predetermined_memory_path=False)
 
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(None, agent.chat, query)
+            result = await loop.run_in_executor(None, self._agent.chat, query)
             reply = (result.reply or "").strip()
 
             if not reply:

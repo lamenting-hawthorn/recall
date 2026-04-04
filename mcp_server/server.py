@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import dataclasses
 import json
 import os
 import socket
@@ -56,14 +57,20 @@ log = get_logger(__name__)
 
 # ── Shared state (initialised in lifespan) ────────────────────────────────────
 
-_db: Any = None  # DatabaseManager
-_graph: Any = None  # KuzuGraphManager
-_chroma: Any = None  # ChromaManager
-_retriever: Any = None  # HybridRetriever
-_capture: Any = None  # ObservationCapture
-_session_mgr: Any = None  # SessionManager
-_session_id: int = -1
-_model_client: Any = None  # BaseModelClient (None in personal mode)
+
+@dataclasses.dataclass
+class ServerContext:
+    db: Any = None           # DatabaseManager
+    graph: Any = None        # KuzuGraphManager
+    chroma: Any = None       # ChromaManager
+    retriever: Any = None    # HybridRetriever
+    capture: Any = None      # ObservationCapture
+    session_mgr: Any = None  # SessionManager
+    session_id: int = -1
+    model_client: Any = None  # BaseModelClient (None in personal mode)
+
+
+_ctx = ServerContext()
 
 # ── Rate limiter (token bucket per client identifier) ─────────────────────────
 
@@ -162,7 +169,7 @@ async def use_memory_agent(question: str, ctx: Context) -> str:
     if not _auth_ok(ctx):
         return "auth_error: Bearer token required. Set RECALL_API_KEY."
 
-    if not _check_rate(correlation_id[:8]):
+    if not _check_rate("use_memory_agent"):
         return f"rate_limit_error: Too many requests. Limit is {RECALL_RATE_LIMIT}/min."
 
     # Apply legacy filters
@@ -171,21 +178,21 @@ async def use_memory_agent(question: str, ctx: Context) -> str:
 
     try:
         # ── Fast path: HybridRetriever tiers 1-3 ─────────────────────────────
-        if _retriever is not None:
-            result = await _retriever.search(
+        if _ctx.retriever is not None:
+            result = await _ctx.retriever.search(
                 query=query,
                 tier_limit=RECALL_DEFAULT_TIER_LIMIT,
                 min_results=RECALL_MIN_RESULTS,
             )
 
             if result.obs_ids:
-                obs_list = await _retriever.get_observations(result.obs_ids)
+                obs_list = await _ctx.retriever.get_observations(result.obs_ids)
                 reply = _format_obs_reply(obs_list, result.source_tier)
 
-                if _capture is not None and _session_id >= 0:
-                    await _capture.record(
+                if _ctx.capture is not None and _ctx.session_id >= 0:
+                    await _ctx.capture.record(
                         content=f"Q: {question}\nA: {reply}",
-                        session_id=_session_id,
+                        session_id=_ctx.session_id,
                         tool_name="use_memory_agent",
                         tier_used=result.source_tier,
                         latency_ms=(time.monotonic() - t0) * 1000,
@@ -215,10 +222,10 @@ async def use_memory_agent(question: str, ctx: Context) -> str:
         await ctx.report_progress(progress=1, total=1)
         reply = (agent_result.reply or "").strip()
 
-        if _capture is not None and _session_id >= 0:
-            await _capture.record(
+        if _ctx.capture is not None and _ctx.session_id >= 0:
+            await _ctx.capture.record(
                 content=f"Q: {question}\nA: {reply}",
-                session_id=_session_id,
+                session_id=_ctx.session_id,
                 tool_name="use_memory_agent",
                 tier_used=4,
                 latency_ms=(time.monotonic() - t0) * 1000,
@@ -250,14 +257,14 @@ async def recall_hybrid(
     Returns:
         JSON string with obs_ids, source_tier, latency_ms, and observation content.
     """
-    if _retriever is None:
+    if _ctx.retriever is None:
         return json.dumps({"error": "HybridRetriever not initialised", "obs_ids": []})
 
     t0 = time.monotonic()
     try:
-        result = await _retriever.search(query=query, tier_limit=tier_limit)
+        result = await _ctx.retriever.search(query=query, tier_limit=tier_limit)
         obs_list = (
-            await _retriever.get_observations(result.obs_ids) if result.obs_ids else []
+            await _ctx.retriever.get_observations(result.obs_ids) if result.obs_ids else []
         )
 
         payload = {
@@ -298,10 +305,10 @@ async def get_timeline(
     Returns:
         JSON list of observation dicts ordered by created_at.
     """
-    if _retriever is None:
+    if _ctx.retriever is None:
         return json.dumps({"error": "HybridRetriever not initialised"})
     try:
-        timeline = await _retriever.get_timeline(obs_id, window)
+        timeline = await _ctx.retriever.get_timeline(obs_id, window)
         return json.dumps(timeline, indent=2, default=str)
     except Exception as exc:
         log.warning("get_timeline_error", obs_id=obs_id, error=str(exc))
@@ -325,10 +332,10 @@ async def get_observations(
     Returns:
         JSON list of full observation records.
     """
-    if _retriever is None:
+    if _ctx.retriever is None:
         return json.dumps({"error": "HybridRetriever not initialised"})
     try:
-        obs_list = await _retriever.get_observations(ids)
+        obs_list = await _ctx.retriever.get_observations(ids)
         return json.dumps(obs_list, indent=2, default=str)
     except Exception as exc:
         log.warning("get_observations_error", ids=ids, error=str(exc))
@@ -339,74 +346,85 @@ async def get_observations(
 
 
 async def _startup() -> None:
-    """Initialise storage, indexer, retriever, and session on server start."""
-    global _db, _graph, _chroma, _retriever, _capture, _session_mgr, _session_id, _model_client
+    """Initialise storage, indexer, retriever, and session on server start.
 
+    Critical failures (database unavailable) are re-raised so the caller knows
+    the server is non-functional. Non-critical failures (graph, vector, vault
+    indexer) are logged and the server continues in degraded mode.
+    """
+    from recall.storage.database import DatabaseManager
+    from recall.storage.graph import KuzuGraphManager
+    from recall.storage.vector import ChromaManager
+    from recall.retrieval.hybrid import HybridRetriever
+    from recall.capture.session import SessionManager
+    from recall.capture.compressor import MemoryCompressor
+    from recall.capture.observation import ObservationCapture
+    from recall.indexer.vault import VaultIndexer
+
+    # ── Critical: database must succeed ──────────────────────────────────────
+    _ctx.db = DatabaseManager()
+    await _ctx.db.init()  # raises StorageError on failure
+
+    # ── Non-critical: graph + vector (degrade gracefully if unavailable) ─────
+    # KuzuGraphManager.init() handles "kuzu not installed" internally (available=False).
+    # We only catch unexpected init errors so the server keeps running.
+    _ctx.graph = KuzuGraphManager()
     try:
-        from recall.storage.database import DatabaseManager
-        from recall.storage.graph import KuzuGraphManager
-        from recall.storage.vector import ChromaManager
-        from recall.retrieval.hybrid import HybridRetriever
-        from recall.capture.session import SessionManager
-        from recall.capture.compressor import MemoryCompressor
-        from recall.capture.observation import ObservationCapture
-        from recall.indexer.vault import VaultIndexer
+        _ctx.graph.init()
+    except Exception as exc:
+        log.warning("graph_init_failed", error=str(exc))
 
-        _db = DatabaseManager()
-        await _db.init()
+    _ctx.chroma = ChromaManager()
+    try:
+        _ctx.chroma.init()
+    except Exception as exc:
+        log.warning("chroma_init_failed", error=str(exc))
+        _ctx.chroma = None
 
-        _graph = KuzuGraphManager()
-        _graph.init()
+    _ctx.retriever = HybridRetriever(
+        db=_ctx.db,
+        graph=_ctx.graph,
+        chroma=_ctx.chroma,
+        memory_path=str(RECALL_VAULT_PATH),
+    )
 
-        _chroma = ChromaManager()
-        _chroma.init()
+    # ── Non-critical: model client (optional, for compression/summaries) ─────
+    try:
+        from recall.core.model_client import BaseModelClient
 
-        _retriever = HybridRetriever(
-            db=_db,
-            graph=_graph,
-            chroma=_chroma,
-            memory_path=str(RECALL_VAULT_PATH),
-        )
+        _ctx.model_client = BaseModelClient.from_env()
+    except Exception as exc:
+        log.info("model_client_unavailable", reason=str(exc))
+        _ctx.model_client = None
 
-        # Try to init model client (may fail if no API key set — that's OK)
-        try:
-            from recall.core.model_client import BaseModelClient
+    compressor = MemoryCompressor(db=_ctx.db, model_client=_ctx.model_client)
+    _ctx.capture = ObservationCapture(db=_ctx.db, compressor=compressor)
+    _ctx.session_mgr = SessionManager(_ctx.db)
+    _ctx.session_id = await _ctx.session_mgr.start(correlation_id=str(uuid.uuid4()))
 
-            _model_client = BaseModelClient.from_env()
-        except Exception as exc:
-            log.info("model_client_unavailable", reason=str(exc))
-            _model_client = None
-
-        compressor = MemoryCompressor(db=_db, model_client=_model_client)
-        _capture = ObservationCapture(db=_db, compressor=compressor)
-        _session_mgr = SessionManager(_db)
-        _session_id = await _session_mgr.start(correlation_id=str(uuid.uuid4()))
-
-        # Index vault + start file watcher
-        vault = VaultIndexer(db=_db, graph=_graph, vault_path=RECALL_VAULT_PATH)
+    # ── Non-critical: vault indexer ───────────────────────────────────────────
+    try:
+        vault = VaultIndexer(db=_ctx.db, graph=_ctx.graph, vault_path=RECALL_VAULT_PATH)
         await vault.walk()
         vault.start_watcher()
-
-        log.info(
-            "recall_server_ready", session_id=_session_id, vault=str(RECALL_VAULT_PATH)
-        )
-
     except Exception as exc:
-        log.warning("startup_partial_failure", error=str(exc))
-        # Server continues in degraded mode — MCP stdio still works
+        log.warning("vault_indexer_unavailable", error=str(exc))
+
+    log.info(
+        "recall_server_ready", session_id=_ctx.session_id, vault=str(RECALL_VAULT_PATH)
+    )
 
 
 async def _shutdown() -> None:
     """Close session with summary and clean up on server stop."""
-    global _session_id
-    if _session_mgr is not None and _session_id >= 0:
+    if _ctx.session_mgr is not None and _ctx.session_id >= 0:
         try:
-            await _session_mgr.end(_session_id, _model_client)
+            await _ctx.session_mgr.end(_ctx.session_id, _ctx.model_client)
         except Exception as exc:
             log.warning("shutdown_session_error", error=str(exc))
-    if _db is not None:
+    if _ctx.db is not None:
         try:
-            await _db.close()
+            await _ctx.db.close()
         except Exception:
             pass
     log.info("recall_server_stopped")

@@ -62,6 +62,16 @@ class VaultIndexer:
 
     async def index_file(self, path: Path) -> None:
         """Index a single markdown file: update entity_metadata + Kuzu graph."""
+        # Skip if file hasn't changed since last index (compare mtime vs last_indexed)
+        try:
+            mtime = path.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        entity_name = self._path_to_entity_name(path)
+        last_indexed = await self._db.get_entity_last_indexed(entity_name)
+        if last_indexed is not None and mtime <= last_indexed:
+            return
+
         try:
             content = path.read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
@@ -69,7 +79,6 @@ class VaultIndexer:
 
         clean_content = self._strip_private(content)
         links = self._extract_wikilinks(clean_content)
-        entity_name = self._path_to_entity_name(path)
 
         await self._db.upsert_entity(
             name=entity_name,
