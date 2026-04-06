@@ -10,7 +10,7 @@ from typing import Any
 
 import aiosqlite
 
-from recall.config import RECALL_DB_PATH
+from recall.config import RECALL_DB_PATH, RECALL_OBS_TTL_DAYS
 from recall.core.storage import BaseStorage
 from recall.errors import StorageError
 from recall.logging import get_logger
@@ -95,10 +95,44 @@ class DatabaseManager(BaseStorage):
             self._conn = await aiosqlite.connect(self._path)
             self._conn.row_factory = aiosqlite.Row
             await self._conn.executescript(_SCHEMA)
+            # Add expires_at column if this is an existing DB without it
+            try:
+                await self._conn.execute(
+                    "ALTER TABLE observations ADD COLUMN expires_at REAL"
+                )
+            except Exception:
+                pass  # column already exists — normal for new installs
             await self._conn.commit()
+            # Purge expired observations on startup (lazy cleanup)
+            await self._purge_expired()
             log.info("db_init", path=str(self._path))
+        except StorageError:
+            raise
         except Exception as exc:
             raise StorageError(f"Failed to initialise database: {exc}") from exc
+
+    async def _purge_expired(self) -> None:
+        """Delete observations whose TTL has elapsed and clean up FTS index."""
+        now = time.time()
+        try:
+            async with self._conn.execute(
+                "SELECT id FROM observations WHERE expires_at IS NOT NULL AND expires_at < ?",
+                (now,),
+            ) as cur:
+                expired_ids = [row[0] for row in await cur.fetchall()]
+            if not expired_ids:
+                return
+            placeholders = ",".join("?" * len(expired_ids))
+            await self._conn.execute(
+                f"DELETE FROM observations WHERE id IN ({placeholders})", expired_ids
+            )
+            await self._conn.execute(
+                f"DELETE FROM content_fts WHERE obs_id IN ({placeholders})", expired_ids
+            )
+            await self._conn.commit()
+            log.info("db_purge_expired", count=len(expired_ids))
+        except Exception as exc:
+            log.warning("db_purge_failed", error=str(exc))
 
     async def close(self) -> None:
         if self._conn:
@@ -200,11 +234,15 @@ class DatabaseManager(BaseStorage):
         if existing:
             log.debug("obs_dedup", content_hash=content_hash[:8])
             return existing[0]
+        # Set TTL only for regular observations (not entity_content or session_note)
+        expires_at: float | None = None
+        if obs_type == "observation" and RECALL_OBS_TTL_DAYS > 0:
+            expires_at = time.time() + RECALL_OBS_TTL_DAYS * 86400
         try:
             async with self._conn.execute(
                 """INSERT INTO observations
-                   (session_id, content, content_hash, tier_used, latency_ms, tool_name, type)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                   (session_id, content, content_hash, tier_used, latency_ms, tool_name, type, expires_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     session_id,
                     content,
@@ -213,6 +251,7 @@ class DatabaseManager(BaseStorage):
                     latency_ms,
                     tool_name,
                     obs_type,
+                    expires_at,
                 ),
             ) as cur:
                 obs_id = cur.lastrowid

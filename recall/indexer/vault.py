@@ -124,6 +124,10 @@ class VaultIndexer:
             return
 
         indexer = self
+        # Capture the running loop here (before spawning the daemon thread) so
+        # the handler can use it safely — asyncio.get_event_loop() is deprecated
+        # in Python 3.10+ when called from a non-async context in another thread.
+        loop = asyncio.get_running_loop()
 
         class _Handler(FileSystemEventHandler):  # type: ignore[misc]
             def on_modified(self, event) -> None:  # type: ignore[override]
@@ -140,11 +144,7 @@ class VaultIndexer:
                     return
                 log.info("vault_file_changed", path=str(p))
                 try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        asyncio.run_coroutine_threadsafe(indexer.index_file(p), loop)
-                    else:
-                        asyncio.run(indexer.index_file(p))
+                    asyncio.run_coroutine_threadsafe(indexer.index_file(p), loop)
                 except Exception as exc:
                     log.warning("watcher_index_failed", path=str(p), error=str(exc))
 

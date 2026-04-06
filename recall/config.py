@@ -86,6 +86,8 @@ RECALL_MEMORY_SIZE_LIMIT: int = 100 * 1024 * 1024
 # ── Capture / compression ─────────────────────────────────────────────────────
 
 RECALL_COMPRESS_EVERY: int = int(os.getenv("RECALL_COMPRESS_EVERY", "50"))
+# TTL for regular observations in days (0 = no expiry)
+RECALL_OBS_TTL_DAYS: int = int(os.getenv("RECALL_OBS_TTL_DAYS", "90"))
 
 # ── Auth & rate limiting ──────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ Apache 2.0 — original implementation.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING
 
@@ -84,17 +85,32 @@ class HybridRetriever:
         highest_tier = 0
         tier1_ids: list[int] = []
 
-        # ── Tier 1: FTS5 ─────────────────────────────────────────────────────
+        # ── Tiers 1+3: FTS5 + Vector in parallel ─────────────────────────────
+        # When vector is available, run both at once so graph expansion (Tier 2)
+        # benefits from the richer seed set. FTS5 catches keyword matches;
+        # vector catches semantic matches that keyword search would miss.
         if tier_limit >= 1:
-            r1 = await self._fts.search(query, limit=limit)
-            tier1_ids = r1.obs_ids
+            if tier_limit >= 3 and self._vector.available:
+                r1, r3 = await asyncio.gather(
+                    self._fts.search(query, limit=limit),
+                    self._vector.search(query, limit=limit),
+                )
+                tier1_ids = _merge(r1.obs_ids, r3.obs_ids)
+                if r1.obs_ids:
+                    highest_tier = 1
+                if r3.obs_ids:
+                    highest_tier = max(highest_tier, 3)
+            else:
+                r1 = await self._fts.search(query, limit=limit)
+                tier1_ids = r1.obs_ids
+                if r1.obs_ids:
+                    highest_tier = 1
+
             all_ids = _merge(all_ids, tier1_ids)
-            if r1.obs_ids:
-                highest_tier = 1
-            if len(all_ids) >= min_results and tier_limit == 1:
+            if len(all_ids) >= min_results and tier_limit <= 1:
                 return self._build(all_ids[:limit], highest_tier, t0)
 
-        # ── Tier 2: Kuzu graph ────────────────────────────────────────────────
+        # ── Tier 2: Kuzu graph (expands from FTS5+vector seed) ───────────────
         if tier_limit >= 2:
             if not self._graph_retriever.available:
                 log.warning("tier2_unavailable", reason="Kuzu not initialised")
@@ -106,24 +122,7 @@ class HybridRetriever:
                 )
                 all_ids = _merge(all_ids, r2.obs_ids)
                 if r2.obs_ids:
-                    highest_tier = 2
-
-            if len(all_ids) >= min_results:
-                return self._build(all_ids[:limit], highest_tier, t0)
-
-        # ── Tier 3: ChromaDB (optional) ───────────────────────────────────────
-        if tier_limit >= 3:
-            if not self._vector.available:
-                log.debug(
-                    "tier3_skipped",
-                    reason="RECALL_VECTOR=false or chromadb unavailable",
-                )
-            else:
-                r3 = await self._vector.search(query, limit=limit)
-                new_ids = [i for i in r3.obs_ids if i not in set(all_ids)]
-                all_ids = _merge(all_ids, new_ids)
-                if new_ids:
-                    highest_tier = 3
+                    highest_tier = max(highest_tier, 2)
 
             if len(all_ids) >= min_results:
                 return self._build(all_ids[:limit], highest_tier, t0)
